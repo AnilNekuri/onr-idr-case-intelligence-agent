@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "release_name": "onr-idr-public-guidance",
+  "source_prefix": "knowledge/approved/",
+  "release_prefix": "knowledge/releases/",
+  "documents": [
+    "01_scope_and_eligibility.md",
+    "02_open_negotiation_workflow.md",
+    "03_federal_idr_workflow.md",
+    "04_required_information_and_blockers.md",
+    "05_demo_faq.md"
+  ]
+}

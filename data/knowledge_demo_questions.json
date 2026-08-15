@@ -1,0 +1,62 @@
+[
+  {
+    "id": "DEMO-Q01",
+    "question": "What types of claims may qualify for the Federal IDR process?",
+    "expected_document_ids": ["KB-NSA-001"],
+    "expected_concepts": ["emergency services", "non-emergency services at an in-network facility", "air ambulance", "eligibility review"]
+  },
+  {
+    "id": "DEMO-Q02",
+    "question": "Can a Medicare claim use this Federal IDR process?",
+    "expected_document_ids": ["KB-NSA-001"],
+    "expected_concepts": ["not Federal IDR", "Medicare"]
+  },
+  {
+    "id": "DEMO-Q03",
+    "question": "When must open negotiation be initiated?",
+    "expected_document_ids": ["KB-NSA-002", "KB-NSA-005"],
+    "expected_concepts": ["within 30 business days", "initial payment or notice of denial"]
+  },
+  {
+    "id": "DEMO-Q04",
+    "question": "Can the analyst initiate IDR before the open negotiation period ends?",
+    "expected_document_ids": ["KB-NSA-002", "KB-NSA-003"],
+    "expected_concepts": ["no", "exhaust 30-business-day period", "do not initiate early"]
+  },
+  {
+    "id": "DEMO-Q05",
+    "question": "What belongs in an open negotiation notice?",
+    "expected_document_ids": ["KB-NSA-002"],
+    "expected_concepts": ["claim number", "NPI", "service date", "service code", "offer", "contact information"]
+  },
+  {
+    "id": "DEMO-Q06",
+    "question": "What should I do if the EOB and QPA are missing?",
+    "expected_document_ids": ["KB-NSA-004", "KB-NSA-005"],
+    "expected_concepts": ["missing-information blocker", "retrieve EOB", "request QPA"]
+  },
+  {
+    "id": "DEMO-Q07",
+    "question": "How long is the normal IDR initiation window after open negotiation ends?",
+    "expected_document_ids": ["KB-NSA-003", "KB-NSA-005"],
+    "expected_concepts": ["four business days", "deterministic calculation"]
+  },
+  {
+    "id": "DEMO-Q08",
+    "question": "What are common reasons an IDR submission is delayed?",
+    "expected_document_ids": ["KB-NSA-004"],
+    "expected_concepts": ["state law", "batching", "QPA", "contact information", "open negotiation evidence"]
+  },
+  {
+    "id": "DEMO-Q09",
+    "question": "What is the current Federal IDR administrative fee?",
+    "expected_document_ids": ["KB-NSA-003", "KB-NSA-005"],
+    "expected_concepts": ["$15 per party per dispute", "on or after June 11, 2026", "verify current guidance"]
+  },
+  {
+    "id": "DEMO-Q10",
+    "question": "Which 2026 workflow changes should not be applied before CMS activates them?",
+    "expected_document_ids": ["KB-NSA-002", "KB-NSA-003", "KB-NSA-005"],
+    "expected_concepts": ["phased implementation", "supporting functionality", "CMS Notices", "IDR Gateway"]
+  }
+]

@@ -1,0 +1,40 @@
+# Copy this file to terraform.tfvars and replace the sample email before planning.
+# terraform.tfvars is ignored by Git because local values may be account-specific.
+
+aws_region         = "us-east-1"
+aws_profile        = null
+budget_limit_usd   = 10
+budget_alert_email = "your-email@example.com"
+
+# Optional for this demo. Enable it when recovery from accidental writes is needed.
+case_table_point_in_time_recovery_enabled = false
+
+# Server-side uploads do not require versioning or CORS for this demo.
+case_documents_force_destroy         = true
+case_documents_versioning_enabled     = false
+temporary_document_expiration_days    = 30
+case_documents_cors_allowed_origins   = []
+
+# The knowledge bucket is isolated from case documents. Only this prefix is ingested.
+knowledge_documents_force_destroy     = true
+knowledge_documents_versioning_enabled = false
+knowledge_documents_prefix            = "documents/"
+
+# Step 15 is opt-in because deployment and invocation incur AgentCore, retrieval,
+# model, and observability charges. Build the ZIP before setting this to true.
+enable_agentcore_runtime                  = false
+agentcore_bedrock_model_id                = null
+agentcore_deployment_package_path         = "../../../output/agentcore/deployment_package.zip"
+agentcore_deployment_bucket_force_destroy = true
+agentcore_idle_runtime_session_timeout    = 300
+agentcore_max_lifetime                    = 900
+
+# Transaction Search is account-level. Enable this only when Terraform should
+# own the existing X-Ray-to-CloudWatch destination and Default indexing rule.
+enable_agentcore_transaction_search = false
+agentcore_trace_indexing_percentage = 1
+
+additional_tags = {
+  Owner    = "your-name-or-team"
+  Workload = "case-intelligence-demo"
+}

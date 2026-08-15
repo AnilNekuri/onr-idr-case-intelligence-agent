@@ -1,0 +1,26 @@
+[project]
+name = "onr-idr-case-intelligence-agent"
+version = "0.1.0"
+description = "ONR/IDR case intake and intelligence agent"
+requires-python = ">=3.12"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = ["-ra", "-m", "not integration"]
+pythonpath = ["."]
+markers = [
+    "integration: tests that make real calls to development AWS resources",
+]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 88
+extend-exclude = [".venv", ".pytest-tmp*", "output", "tmp"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+exclude = ["^\\.venv/"]
