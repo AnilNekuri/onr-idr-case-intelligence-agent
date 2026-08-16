@@ -16,6 +16,8 @@ from app.models.claim_intake import (
     ClaimIntakeRequest,
     ClaimIntakeResponse,
     ClaimIntakeStage,
+    ClaimRuleEvaluation,
+    ClaimRuleStatus,
     StoredIntakeDocument,
 )
 from app.models.document_extraction import (
@@ -44,6 +46,8 @@ __all__ = [
     "ClaimIntakeRequest",
     "ClaimIntakeResponse",
     "ClaimIntakeStage",
+    "ClaimRuleEvaluation",
+    "ClaimRuleStatus",
     "Document",
     "DisputeDocumentExtraction",
     "DisputeDocumentType",

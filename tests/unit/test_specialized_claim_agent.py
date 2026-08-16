@@ -1,5 +1,7 @@
 """Tests for the dedicated ONR and IDR workflow agents."""
 
+from datetime import date
+
 import pytest
 
 from app.models import (
@@ -15,6 +17,7 @@ from app.services.knowledge_chat_service import (
     KnowledgeCitation,
 )
 from app.services.specialized_claim_agent import IdrClaimAgent, OnrClaimAgent
+from app.tools import add_us_federal_business_days
 from tests.unit.tool_support import make_case
 
 
@@ -52,11 +55,18 @@ def _agents() -> tuple[OnrClaimAgent, IdrClaimAgent, KnowledgeChat]:
 
 
 def _extraction(document_type: DisputeDocumentType) -> DisputeDocumentExtraction:
+    negotiation_start = date(2026, 7, 1)
+    negotiation_end = add_us_federal_business_days(negotiation_start, 30)
     return DisputeDocumentExtraction(
         document=ExtractedDisputeDocument(
             document_type=document_type,
             source_file_name="claim.pdf",
             claim_number="CLM-1",
+            date_of_service=date(2026, 6, 1),
+            initial_payment_or_denial_date=date(2026, 6, 15),
+            open_negotiation_start_date=negotiation_start,
+            open_negotiation_end_date=negotiation_end,
+            idr_initiation_date=add_us_federal_business_days(negotiation_end, 2),
         ),
         extraction_mode=ExtractionSource.HYBRID,
     )
@@ -69,8 +79,38 @@ def test_onr_agent_reviews_onr_and_rejects_idr() -> None:
 
     assert review.agent_name == "onr_claim_agent"
     assert "negotiation notice" in review.next_actions[0]
+    assert review.can_submit
+    assert {rule.status.value for rule in review.rule_evaluations} == {"PASS"}
     with pytest.raises(ValueError, match="cannot process IDR"):
         onr_agent.review(_extraction(DisputeDocumentType.IDR))
+
+
+def test_idr_agent_blocks_initiation_after_four_business_day_deadline() -> None:
+    _, idr_agent, _ = _agents()
+    extraction = _extraction(DisputeDocumentType.IDR)
+    negotiation_end = extraction.document.open_negotiation_end_date
+    assert negotiation_end is not None
+    late = extraction.model_copy(
+        update={
+            "document": extraction.document.model_copy(
+                update={
+                    "idr_initiation_date": add_us_federal_business_days(
+                        negotiation_end, 5
+                    )
+                }
+            )
+        }
+    )
+
+    review = idr_agent.review(late)
+
+    rule = next(
+        item
+        for item in review.rule_evaluations
+        if item.rule_id == "IDR_INITIATION_WITHIN_4_BUSINESS_DAYS"
+    )
+    assert rule.status.value == "FAIL"
+    assert not review.can_submit
 
 
 def test_idr_agent_completes_only_idr_cases_with_grounded_guidance() -> None:

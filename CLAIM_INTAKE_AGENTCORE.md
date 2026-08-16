@@ -42,7 +42,8 @@ Submission is a separate, explicit event:
 
 The runtime returns a validated `ClaimIntakeResponse` containing the current
 state, expected input, document type, extracted fields, missing fields, summary,
-submission readiness, case ID, next actions, and Knowledge Base citations.
+submission readiness, case ID, next actions, Knowledge Base citations, and a
+suspected-fraud indicator.
 
 ## Trust and persistence boundaries
 
@@ -51,6 +52,9 @@ submission readiness, case ID, next actions, and Knowledge Base citations.
 - Textract and Bedrock extract the document, but deterministic signals must
   confirm ONR or IDR. `UNKNOWN` cannot proceed.
 - Missing review fields block submission.
+- A request to manipulate, falsify, or duplicate a claim payment is intercepted
+  before model routing or submission. The durable session moves to
+  `DISCONTINUED`, returns `expected_input=NONE`, and rejects all later actions.
 - Only `CONFIRM_SUBMISSION` with `confirmation=true` and an idempotency key can
   create a case.
 - The case ID is derived from the runtime session, so retries cannot create a

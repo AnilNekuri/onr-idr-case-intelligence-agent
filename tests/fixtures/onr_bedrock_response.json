@@ -10,6 +10,7 @@
   "cpt_hcpcs": ["99285"],
   "billed_amount": 8500.00,
   "initial_payment": 2100.00,
+  "initial_payment_or_denial_date": "2026-07-14",
   "qpa": 1950.00,
   "requested_amount": 6000.00,
   "payer_offer": null,

@@ -80,6 +80,14 @@ if (-not $env:S3_CASE_DOCUMENTS_BUCKET) {
     $env:S3_CASE_DOCUMENTS_BUCKET = `
         Get-TerraformOutput "case_documents_bucket_name"
 }
+if (-not $env:AGENTCORE_RUNTIME_ARN) {
+    $env:AGENTCORE_RUNTIME_ARN = `
+        Get-OptionalTerraformOutput "agentcore_runtime_arn"
+}
+if (-not $env:AGENTCORE_ENDPOINT_NAME) {
+    $env:AGENTCORE_ENDPOINT_NAME = `
+        Get-OptionalTerraformOutput "agentcore_endpoint_name"
+}
 if ($UseDynamoDbCases) {
     $env:CASE_REPOSITORY = "dynamodb"
     $env:DYNAMODB_CASE_TABLE = Get-TerraformOutput "case_table_name"
@@ -124,6 +132,9 @@ Write-Host "Model: $env:BEDROCK_MODEL_ID"
 Write-Host "Case repository: $env:CASE_REPOSITORY"
 if ($env:DYNAMODB_CASE_TABLE) {
     Write-Host "DynamoDB case table: $env:DYNAMODB_CASE_TABLE"
+}
+if ($env:AGENTCORE_RUNTIME_ARN) {
+    Write-Host "Case-chat AgentCore endpoint: $env:AGENTCORE_ENDPOINT_NAME"
 }
 if ($env:CLAIM_AGENTCORE_RUNTIME_ARN) {
     Write-Host "Claim-intake AgentCore endpoint: $env:CLAIM_AGENTCORE_ENDPOINT_NAME"

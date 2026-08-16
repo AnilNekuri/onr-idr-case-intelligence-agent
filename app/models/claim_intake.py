@@ -1,6 +1,6 @@
 """Validated contracts for conversational claim intake."""
 
-from datetime import datetime
+from datetime import date, datetime
 from enum import StrEnum
 from typing import Any
 
@@ -40,6 +40,15 @@ class ClaimIntakeStage(StrEnum):
     AWAITING_DOCUMENT = "AWAITING_DOCUMENT"
     REVIEW_AND_CONFIRM = "REVIEW_AND_CONFIRM"
     SUBMITTED = "SUBMITTED"
+    DISCONTINUED = "DISCONTINUED"
+
+
+class ClaimRuleStatus(StrEnum):
+    """Outcome of a deterministic specialist-agent rule evaluation."""
+
+    PASS = "PASS"
+    FAIL = "FAIL"
+    NOT_EVALUATED = "NOT_EVALUATED"
 
 
 class ClaimExpectedInput(StrEnum):
@@ -66,6 +75,19 @@ class ClaimIntakeCitation(ClaimIntakeModel):
     document_location: str
 
 
+class ClaimRuleEvaluation(ClaimIntakeModel):
+    """Auditable result of one ONR or IDR workflow rule."""
+
+    rule_id: str
+    status: ClaimRuleStatus
+    description: str
+    source: str
+    anchor_date: date | None = None
+    calculated_deadline: date | None = None
+    actual_date: date | None = None
+    message: str
+
+
 class ClaimIntakeRequest(ClaimIntakeModel):
     """One invocation sent to the claim-intake AgentCore runtime."""
 
@@ -85,12 +107,14 @@ class ClaimIntakeRecord(ClaimIntakeModel):
     extraction: DisputeDocumentExtraction | None = None
     document_summary: str | None = None
     specialist_agent: str | None = None
+    rule_evaluations: list[ClaimRuleEvaluation] = Field(default_factory=list)
     case_id: str | None = None
     duplicate_detected: bool = False
     submission_idempotency_key: str | None = None
     final_summary: str | None = None
     next_actions: list[str] = Field(default_factory=list)
     citations: list[ClaimIntakeCitation] = Field(default_factory=list)
+    suspected_fraud: bool = False
     updated_at: datetime
     expires_at: int = Field(gt=0)
 
@@ -105,6 +129,7 @@ class ClaimIntakeResponse(ClaimIntakeModel):
     document_type: DisputeDocumentType | None = None
     summary: str | None = None
     specialist_agent: str | None = None
+    rule_evaluations: list[ClaimRuleEvaluation] = Field(default_factory=list)
     extracted_fields: dict[str, Any] | None = None
     missing_fields: list[str] = Field(default_factory=list)
     warnings: list[str] = Field(default_factory=list)
@@ -114,3 +139,4 @@ class ClaimIntakeResponse(ClaimIntakeModel):
     next_actions: list[str] = Field(default_factory=list)
     citations: list[ClaimIntakeCitation] = Field(default_factory=list)
     tools_used: list[str] = Field(default_factory=list)
+    suspected_fraud: bool = False

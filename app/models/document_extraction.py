@@ -69,6 +69,7 @@ class ExtractedDisputeDocument(ExtractionModel):
 
     billed_amount: NonNegativeAmount | None = None
     initial_payment: NonNegativeAmount | None = None
+    initial_payment_or_denial_date: date | None = None
     qpa: NonNegativeAmount | None = None
     requested_amount: NonNegativeAmount | None = None
     payer_offer: NonNegativeAmount | None = None

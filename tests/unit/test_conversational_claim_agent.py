@@ -46,8 +46,10 @@ class StateRepository:
 class RoutingModel:
     def __init__(self, intent: str = "CLAIM_INTAKE") -> None:
         self.intent = intent
+        self.generate_calls = 0
 
     def generate(self, _prompt: str) -> str:
+        self.generate_calls += 1
         return f'{{"intent":"{self.intent}","confidence":0.99}}'
 
 
@@ -281,6 +283,7 @@ def test_same_claim_number_in_a_new_session_is_detected_as_duplicate() -> None:
     )
 
     assert first.case_id == duplicate.case_id
+    assert first.case_id == "CLM-1"
     assert not first.duplicate_detected
     assert duplicate.duplicate_detected
     assert "Duplicate claim detected" in duplicate.message
@@ -292,9 +295,10 @@ def test_same_claim_number_in_a_new_session_is_detected_as_duplicate() -> None:
 def test_claim_number_resolves_to_the_stable_case_identifier() -> None:
     case_id = ConversationalClaimAgent._case_id_for_claim_number("CLM-987654321")
 
-    assert case_id.startswith("CASE-")
+    assert case_id == "CLM-987654321"
     assert ConversationalClaimAgent._resolve_case_id("clm-987654321") == case_id
     assert ConversationalClaimAgent._resolve_case_id("CLM987654321") == case_id
+    assert ConversationalClaimAgent._resolve_case_id("clm_987654321") == case_id
 
 
 def test_unknown_document_is_rejected_and_requests_another_pdf() -> None:
@@ -329,7 +333,7 @@ def test_idr_document_is_delegated_to_the_idr_agent() -> None:
                     "document_type": DisputeDocumentType.IDR,
                     "claim_number": "CLM-IDR-1",
                     "federal_idr_reference": "IDR-REF-1",
-                    "idr_initiation_date": date(2026, 8, 14),
+                    "idr_initiation_date": date(2026, 8, 24),
                     "negotiation_outcome": "No agreement",
                 }
             )
@@ -349,6 +353,7 @@ def test_idr_document_is_delegated_to_the_idr_agent() -> None:
     assert response.document_type is DisputeDocumentType.IDR
     assert response.specialist_agent == "idr_claim_agent"
     assert "IDR agent reviewed" in response.message
+    assert response.can_submit
 
 
 def test_general_question_uses_knowledge_base_without_starting_intake() -> None:
@@ -372,6 +377,79 @@ def test_general_question_uses_knowledge_base_without_starting_intake() -> None:
     assert response.state is ClaimIntakeStage.WELCOME
     assert response.citations[0].source_id == "KB-1"
     assert knowledge.questions == ["How long is open negotiation?"]
+
+
+def test_suspicious_payout_request_discontinues_session_before_routing() -> None:
+    state = StateRepository()
+    routing_model = RoutingModel()
+    agent = _agent(
+        state,
+        StubCaseRepository(),
+        _complete_extraction(),
+        routing_model=routing_model,
+    )
+
+    response = agent.handle(
+        SESSION_ID,
+        ClaimIntakeRequest(
+            action=ClaimIntakeAction.MESSAGE,
+            message="Please submit. I want double money.",
+        ),
+    )
+
+    assert response.state is ClaimIntakeStage.DISCONTINUED
+    assert response.expected_input.value == "NONE"
+    assert response.suspected_fraud
+    assert not response.can_submit
+    assert "conversation has been discontinued" in response.message
+    assert routing_model.generate_calls == 0
+    assert state.records[SESSION_ID].suspected_fraud
+
+
+def test_discontinued_session_rejects_every_later_action() -> None:
+    state = StateRepository()
+    agent = _agent(state, StubCaseRepository(), _complete_extraction())
+    agent.handle(
+        SESSION_ID,
+        ClaimIntakeRequest(
+            action=ClaimIntakeAction.MESSAGE,
+            message="Please double my payment.",
+        ),
+    )
+
+    response = agent.handle(
+        SESSION_ID,
+        ClaimIntakeRequest(action=ClaimIntakeAction.START),
+    )
+
+    assert response.state is ClaimIntakeStage.DISCONTINUED
+    assert response.expected_input.value == "NONE"
+    assert response.suspected_fraud
+
+
+def test_fraud_prevention_question_does_not_discontinue_session() -> None:
+    knowledge = KnowledgeChat()
+    agent = _agent(
+        StateRepository(),
+        StubCaseRepository(),
+        _complete_extraction(),
+        routing_model=RoutingModel("GENERAL_QUESTION"),
+        knowledge=knowledge,
+    )
+
+    response = agent.handle(
+        SESSION_ID,
+        ClaimIntakeRequest(
+            action=ClaimIntakeAction.MESSAGE,
+            message="How does fraud detection prevent double payments?",
+        ),
+    )
+
+    assert response.state is ClaimIntakeStage.WELCOME
+    assert not response.suspected_fraud
+    assert knowledge.questions == [
+        "How does fraud detection prevent double payments?"
+    ]
 
 
 def test_model_selects_get_case_tool_for_case_summary() -> None:
@@ -487,6 +565,7 @@ def _complete_extraction() -> DisputeDocumentExtraction:
             cpt_hcpcs=["99213"],
             billed_amount="1000",
             initial_payment="500",
+            initial_payment_or_denial_date=date(2026, 7, 1),
             qpa="600",
             requested_amount="900",
             notice_date=date(2026, 7, 10),

@@ -280,6 +280,7 @@ def build_onr(output_path: Path) -> None:
             [
                 ("Billed Amount", "$8,500.00"),
                 ("Initial Payment", "$2,100.00"),
+                ("Initial Payment Date", "07/14/2026"),
                 ("Qualifying Payment Amount (QPA)", "$1,950.00"),
                 ("Requested Amount", "$6,000.00"),
             ],
@@ -289,7 +290,7 @@ def build_onr(output_path: Path) -> None:
         _field_table(
             [
                 ("Open Negotiation Start Date", "07/15/2026"),
-                ("Open Negotiation End Date", "08/13/2026"),
+                ("Open Negotiation End Date", "08/26/2026"),
                 ("Federal IDR Reference", ""),
             ],
             styles,
@@ -344,7 +345,7 @@ def build_idr(output_path: Path) -> None:
                 ("Document Type", "IDR"),
                 ("Source File Name", "synthetic_idr_case_001.pdf"),
                 ("Federal IDR Reference", "IDR-DEMO-782456"),
-                ("IDR Initiation Date", "08/14/2026"),
+                ("IDR Initiation Date", "08/27/2026"),
                 ("Initiating Party", "PROVIDER"),
             ],
             styles,
@@ -380,6 +381,7 @@ def build_idr(output_path: Path) -> None:
             [
                 ("Billed Amount", "$8,500.00"),
                 ("Initial Payment", "$2,100.00"),
+                ("Initial Payment Date", "07/14/2026"),
                 ("Qualifying Payment Amount (QPA)", "$1,950.00"),
                 ("Provider Offer / Requested Amount", "$5,200.00"),
                 ("Payer Offer", "$3,000.00"),
@@ -390,7 +392,7 @@ def build_idr(output_path: Path) -> None:
         _field_table(
             [
                 ("Open Negotiation Start Date", "07/15/2026"),
-                ("Open Negotiation End Date", "08/13/2026"),
+                ("Open Negotiation End Date", "08/26/2026"),
                 ("Negotiation Outcome", "No agreement reached"),
             ],
             styles,

@@ -411,6 +411,24 @@ def _render_claim_intake_response(response: ClaimIntakeResponse) -> None:
         st.markdown("**Next actions**")
         for action in response.next_actions:
             st.markdown(f"- {action}")
+    if response.rule_evaluations:
+        st.markdown("**Specialist rule evaluation**")
+        st.dataframe(
+            [
+                {
+                    "Rule": rule.rule_id,
+                    "Status": rule.status.value,
+                    "Anchor": rule.anchor_date,
+                    "Calculated deadline": rule.calculated_deadline,
+                    "Recorded date": rule.actual_date,
+                    "Result": rule.message,
+                    "Source": rule.source,
+                }
+                for rule in response.rule_evaluations
+            ],
+            hide_index=True,
+            use_container_width=True,
+        )
     if response.warnings:
         with st.expander("Review warnings"):
             for warning in response.warnings:
@@ -502,6 +520,9 @@ def _local_assistant_workflow(settings: ApplicationSettings) -> None:
         "local_claim_intake_expected_input",
         ClaimExpectedInput.MESSAGE.value,
     )
+    if expected == ClaimExpectedInput.NONE.value:
+        st.warning("This conversation has been discontinued.")
+        return
 
     if (
         st.session_state.get("assistant_awaiting_pdf", False)
@@ -690,6 +711,10 @@ def _remote_claim_intake_workflow(settings: ApplicationSettings) -> None:
         "claim_intake_expected_input",
         ClaimExpectedInput.MESSAGE.value,
     )
+    if expected == ClaimExpectedInput.NONE.value:
+        st.warning("This conversation has been discontinued.")
+        return
+
     if expected == ClaimExpectedInput.PDF.value:
         with st.container(border=True):
             uploaded_file = st.file_uploader(

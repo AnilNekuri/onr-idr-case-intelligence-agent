@@ -39,6 +39,24 @@ def check_us_federal_holiday(value: Date) -> tuple[FederalHolidayOccurrence, ...
     )
 
 
+def is_us_federal_business_day(value: Date) -> bool:
+    """Return whether a date is Monday-Friday and not a Federal holiday."""
+    return value.weekday() < 5 and not check_us_federal_holiday(value)
+
+
+def add_us_federal_business_days(value: Date, days: int) -> Date:
+    """Add business days, excluding the starting date from the count."""
+    if days < 0:
+        raise ValueError("days must be non-negative")
+    current = value
+    remaining = days
+    while remaining:
+        current += timedelta(days=1)
+        if is_us_federal_business_day(current):
+            remaining -= 1
+    return current
+
+
 def _federal_holidays(year: int) -> tuple[FederalHolidayOccurrence, ...]:
     actual_holidays = (
         ("New Year's Day", Date(year, 1, 1)),
