@@ -106,8 +106,8 @@ Rules:
 - To determine whether a date is a U.S. federal holiday, call
   check_us_federal_holiday. For relative dates such as today, first call
   get_current_date and then check the returned ISO date.
-- For any question about a specific CLM-* claim/case identifier or a legacy
-  CASE-* identifier, call get_case.
+- For any question about a specific ONR-CLM-* or IDR-CLM-* case identifier, or
+  a legacy CLM-* or CASE-* identifier, call get_case.
 - To summarize a specific case, call get_case and summarize only returned facts.
 - For the claim currently being processed in this conversation, call
   get_current_claim.
@@ -163,8 +163,8 @@ _ASSISTANT_TOOLS = (
         description=(
             "Retrieve the authoritative record for one existing case. Use this "
             "for summaries, status, dates, documents, events, provider, or other "
-            "questions that mention a CLM-* claim/case identifier or legacy "
-            "CASE-* identifier."
+            "questions that mention an ONR-CLM-* or IDR-CLM-* case identifier, "
+            "or a legacy CLM-* or CASE-* identifier."
         ),
         parameters={
             "type": "object",
@@ -172,7 +172,8 @@ _ASSISTANT_TOOLS = (
                 "case_id": {
                     "type": "string",
                     "description": (
-                        "Exact CLM-* claim/case identifier or legacy CASE-* ID."
+                        "Exact ONR-CLM-* or IDR-CLM-* case identifier, or a "
+                        "legacy CLM-* or CASE-* ID."
                     ),
                 }
             },
@@ -684,8 +685,30 @@ class ConversationalClaimAgent:
                 ),
             )
 
+        document_type = record.extraction.document.document_type
+        expected_case_type = CaseType(document_type.value)
         case, duplicate_detected = self._create_or_recover_case(record)
-        specialist = self._specialist_for(record.extraction.document.document_type)
+        if case.case_type is not expected_case_type:
+            return self._response(
+                record,
+                message=(
+                    f"Submission blocked because existing case {case.case_id} is "
+                    f"{case.case_type.value}, but this document is "
+                    f"{expected_case_type.value}."
+                ),
+                expected_input=ClaimExpectedInput.MESSAGE,
+                document_type=document_type,
+                summary=record.document_summary,
+                specialist_agent=record.specialist_agent,
+                rule_evaluations=record.rule_evaluations,
+                extracted_fields=record.extraction.document.model_dump(mode="json"),
+                duplicate_detected=True,
+                can_submit=False,
+                next_actions=[
+                    "Review the conflicting case record before retrying submission."
+                ],
+            )
+        specialist = self._specialist_for(document_type)
         completion = specialist.complete_submission(case)
         final_summary = completion.summary
         next_actions = list(completion.next_actions)
@@ -824,14 +847,18 @@ class ConversationalClaimAgent:
         assert record.document is not None
         extracted = record.extraction.document
         assert extracted.claim_number is not None
-        case_id = self._case_id_for_claim_number(extracted.claim_number)
+        expected_case_type = CaseType(extracted.document_type.value)
+        case_id = self._case_id_for_claim_number(
+            extracted.claim_number,
+            expected_case_type,
+        )
         existing = self._case_service.get_case(case_id)
         if existing is None:
             assert extracted.provider_name is not None
             assert extracted.open_negotiation_start_date is not None
             assert extracted.open_negotiation_end_date is not None
             case = self._case_service.submit_case(
-                case_type=CaseType(extracted.document_type.value),
+                case_type=expected_case_type,
                 provider_name=extracted.provider_name,
                 open_negotiation_start_date=extracted.open_negotiation_start_date,
                 open_negotiation_end_date=extracted.open_negotiation_end_date,
@@ -869,7 +896,7 @@ class ConversationalClaimAgent:
             ) from error
 
     @staticmethod
-    def _case_id_for_claim_number(claim_number: str) -> str:
+    def _normalize_claim_number(claim_number: str) -> str:
         normalized = re.sub(r"[^A-Z0-9]+", "-", claim_number.upper()).strip("-")
         if not normalized:
             raise ValueError("claim_number must contain letters or numbers")
@@ -880,10 +907,26 @@ class ConversationalClaimAgent:
         return normalized
 
     @classmethod
+    def _case_id_for_claim_number(
+        cls,
+        claim_number: str,
+        case_type: CaseType,
+    ) -> str:
+        """Return a stable identity scoped to one claim workflow."""
+        return f"{case_type.value}-{cls._normalize_claim_number(claim_number)}"
+
+    @classmethod
     def _resolve_case_id(cls, supplied_id: str) -> str:
         normalized = supplied_id.strip().upper()
+        for case_type in CaseType:
+            prefix = f"{case_type.value}-"
+            if normalized.startswith(prefix):
+                return cls._case_id_for_claim_number(
+                    normalized.removeprefix(prefix),
+                    case_type,
+                )
         if normalized.startswith("CLM"):
-            return cls._case_id_for_claim_number(normalized)
+            return cls._normalize_claim_number(normalized)
         return normalized
 
     @staticmethod

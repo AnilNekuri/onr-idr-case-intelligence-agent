@@ -170,7 +170,7 @@ Do not run both ONR and IDR live in the 15-minute version. Keep the IDR example 
 | Unrelated or unrecognized PDF | Classifies as `UNKNOWN` and stops | A request for a supported document, not a new case |
 | Required field missing | Lists the exact missing fields and blocks submission | A corrected document or an explicit exception |
 | Timing or sequence rule fails | Shows the rule, source, calculated deadline, recorded date, and result | A rule-passing case or a focused exception for review |
-| Duplicate claim | Resolves the stable claim identifier and returns the existing case | One case instead of duplicate queue entries |
+| Duplicate claim | Resolves a stable workflow-scoped claim identifier and returns the existing case | One case per ONR or IDR workflow instead of duplicate queue entries |
 | Complete ONR/IDR intake | Produces structured data, summary, and next actions | A submission-ready case with evidence |
 | Process question | Uses RAG and returns citations | Less manual searching through guidance |
 

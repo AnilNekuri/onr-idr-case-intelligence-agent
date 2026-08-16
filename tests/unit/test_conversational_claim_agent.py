@@ -22,7 +22,7 @@ from app.services.knowledge_chat_service import (
     KnowledgeCitation,
 )
 from app.tools import KnowledgeSearchResult
-from tests.unit.tool_support import StubCaseRepository
+from tests.unit.tool_support import StubCaseRepository, make_case
 
 SESSION_ID = "12345678-1234-1234-1234-123456789012"
 DOCUMENT = StoredIntakeDocument(
@@ -283,7 +283,7 @@ def test_same_claim_number_in_a_new_session_is_detected_as_duplicate() -> None:
     )
 
     assert first.case_id == duplicate.case_id
-    assert first.case_id == "CLM-1"
+    assert first.case_id == "ONR-CLM-1"
     assert not first.duplicate_detected
     assert duplicate.duplicate_detected
     assert "Duplicate claim detected" in duplicate.message
@@ -293,12 +293,127 @@ def test_same_claim_number_in_a_new_session_is_detected_as_duplicate() -> None:
 
 
 def test_claim_number_resolves_to_the_stable_case_identifier() -> None:
-    case_id = ConversationalClaimAgent._case_id_for_claim_number("CLM-987654321")
+    onr_case_id = ConversationalClaimAgent._case_id_for_claim_number(
+        "CLM-987654321",
+        CaseType.ONR,
+    )
+    idr_case_id = ConversationalClaimAgent._case_id_for_claim_number(
+        "CLM-987654321",
+        CaseType.IDR,
+    )
 
-    assert case_id == "CLM-987654321"
-    assert ConversationalClaimAgent._resolve_case_id("clm-987654321") == case_id
-    assert ConversationalClaimAgent._resolve_case_id("CLM987654321") == case_id
-    assert ConversationalClaimAgent._resolve_case_id("clm_987654321") == case_id
+    assert onr_case_id == "ONR-CLM-987654321"
+    assert idr_case_id == "IDR-CLM-987654321"
+    assert onr_case_id != idr_case_id
+    assert ConversationalClaimAgent._resolve_case_id("onr-clm-987654321") == (
+        onr_case_id
+    )
+    assert ConversationalClaimAgent._resolve_case_id("clm_987654321") == (
+        "CLM-987654321"
+    )
+
+
+def test_same_claim_number_can_create_separate_onr_and_idr_cases() -> None:
+    state = StateRepository()
+    case_repository = StubCaseRepository()
+    onr_extraction = _complete_extraction()
+    idr_extraction = onr_extraction.model_copy(
+        update={
+            "document": onr_extraction.document.model_copy(
+                update={
+                    "document_type": DisputeDocumentType.IDR,
+                    "federal_idr_reference": "IDR-REF-1",
+                    "idr_initiation_date": date(2026, 8, 24),
+                    "negotiation_outcome": "No agreement",
+                }
+            )
+        }
+    )
+    idr_session = "87654321-4321-4321-4321-210987654321"
+
+    onr_agent = _agent(state, case_repository, onr_extraction)
+    onr_agent.handle(
+        SESSION_ID,
+        ClaimIntakeRequest(
+            action=ClaimIntakeAction.DOCUMENT_UPLOADED,
+            document=DOCUMENT,
+        ),
+    )
+    onr = onr_agent.handle(
+        SESSION_ID,
+        ClaimIntakeRequest(
+            action=ClaimIntakeAction.CONFIRM_SUBMISSION,
+            confirmation=True,
+            idempotency_key="SUBMIT-ONR",
+        ),
+    )
+
+    idr_agent = _agent(state, case_repository, idr_extraction)
+    idr_agent.handle(
+        idr_session,
+        ClaimIntakeRequest(
+            action=ClaimIntakeAction.DOCUMENT_UPLOADED,
+            document=DOCUMENT.model_copy(update={"document_id": "DOC-IDR"}),
+        ),
+    )
+    idr = idr_agent.handle(
+        idr_session,
+        ClaimIntakeRequest(
+            action=ClaimIntakeAction.CONFIRM_SUBMISSION,
+            confirmation=True,
+            idempotency_key="SUBMIT-IDR",
+        ),
+    )
+
+    onr_case = case_repository.get(onr.case_id or "")
+    idr_case = case_repository.get(idr.case_id or "")
+    assert onr.case_id == "ONR-CLM-1"
+    assert idr.case_id == "IDR-CLM-1"
+    assert not onr.duplicate_detected
+    assert not idr.duplicate_detected
+    assert onr_case is not None and onr_case.case_type is CaseType.ONR
+    assert idr_case is not None and idr_case.case_type is CaseType.IDR
+
+
+def test_conflicting_stored_case_type_returns_a_controlled_response() -> None:
+    state = StateRepository()
+    case_repository = StubCaseRepository(make_case(case_id="IDR-CLM-1"))
+    onr_extraction = _complete_extraction()
+    idr_extraction = onr_extraction.model_copy(
+        update={
+            "document": onr_extraction.document.model_copy(
+                update={
+                    "document_type": DisputeDocumentType.IDR,
+                    "federal_idr_reference": "IDR-REF-1",
+                    "idr_initiation_date": date(2026, 8, 24),
+                    "negotiation_outcome": "No agreement",
+                }
+            )
+        }
+    )
+    agent = _agent(state, case_repository, idr_extraction)
+    agent.handle(
+        SESSION_ID,
+        ClaimIntakeRequest(
+            action=ClaimIntakeAction.DOCUMENT_UPLOADED,
+            document=DOCUMENT,
+        ),
+    )
+
+    response = agent.handle(
+        SESSION_ID,
+        ClaimIntakeRequest(
+            action=ClaimIntakeAction.CONFIRM_SUBMISSION,
+            confirmation=True,
+            idempotency_key="SUBMIT-IDR",
+        ),
+    )
+
+    assert response.state is ClaimIntakeStage.REVIEW_AND_CONFIRM
+    assert response.expected_input.value == "MESSAGE"
+    assert response.duplicate_detected
+    assert not response.can_submit
+    assert "existing case IDR-CLM-1 is ONR" in response.message
 
 
 def test_unknown_document_is_rejected_and_requests_another_pdf() -> None:

@@ -57,6 +57,8 @@ suspected-fraud indicator.
   `DISCONTINUED`, returns `expected_input=NONE`, and rejects all later actions.
 - Only `CONFIRM_SUBMISSION` with `confirmation=true` and an idempotency key can
   create a case.
+- Durable case IDs include the workflow type (`ONR-CLM-*` or `IDR-CLM-*`) so
+  ONR and IDR records for the same underlying claim cannot collide.
 - The case ID is derived from the runtime session, so retries cannot create a
   second case.
 - DynamoDB stores durable workflow state; an AgentCore microVM is not treated as
