@@ -116,16 +116,24 @@ resource "aws_bedrockagent_data_source" "s3" {
 
     managed_knowledge_base_connector_configuration {
       connector_parameters = jsonencode({
-        type    = "S3"
-        version = "1"
+        type       = "S3"
+        version    = "1"
+        aclEnabled = false
         connectionConfiguration = {
           bucketName           = var.bucket_name
           bucketOwnerAccountId = var.aws_account_id
         }
         filterConfiguration = {
-          inclusionPrefixes = [var.documents_prefix]
+          inclusionPrefixes      = [var.documents_prefix]
+          maxFileSizeInMegaBytes = "500"
         }
       })
+
+      media_extraction_configuration {
+        image_extraction_configuration {
+          image_extraction_status = "ENABLED"
+        }
+      }
     }
   }
 }

@@ -40,6 +40,7 @@ def extraction_json_schema() -> dict[str, object]:
         "cpt_hcpcs": {"type": "array", "items": {"type": "string"}},
         "billed_amount": nullable_amount,
         "initial_payment": nullable_amount,
+        "initial_payment_or_denial_date": nullable_date,
         "qpa": nullable_amount,
         "requested_amount": nullable_amount,
         "payer_offer": nullable_amount,

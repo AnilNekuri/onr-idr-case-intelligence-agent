@@ -2,7 +2,9 @@
 
 from app.tools.calendar_tool import (
     FederalHolidayOccurrence,
+    add_us_federal_business_days,
     check_us_federal_holiday,
+    is_us_federal_business_day,
 )
 from app.tools.case_tool import CaseNotFoundError, get_case
 from app.tools.deadline_risk_tool import (
@@ -36,6 +38,7 @@ __all__ = [
     "KnowledgeSearchError",
     "KnowledgeSearchResult",
     "assess_deadline_risk",
+    "add_us_federal_business_days",
     "calculate_deadline_risk",
     "check_us_federal_holiday",
     "create_knowledge_retriever",
@@ -44,5 +47,6 @@ __all__ = [
     "get_case",
     "get_case_timeline",
     "get_missing_information",
+    "is_us_federal_business_day",
     "search_process_knowledge",
 ]

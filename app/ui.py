@@ -387,13 +387,18 @@ def _render_claim_intake_response(response: ClaimIntakeResponse) -> None:
     """Render the structured response from the remote intake runtime."""
     if response.tools_used:
         st.caption("Tools used: " + ", ".join(response.tools_used))
+    if response.specialist_agent:
+        st.caption("Specialist agent: " + response.specialist_agent)
     if response.document_type is not None:
         document_type, missing, ready = st.columns(3)
         document_type.metric("Document type", response.document_type.value)
         missing.metric("Missing fields", len(response.missing_fields))
         ready.metric("Ready to submit", "Yes" if response.can_submit else "No")
     if response.case_id:
-        st.success(f"Created case: {response.case_id}")
+        if response.duplicate_detected:
+            st.info(f"Existing case: {response.case_id}")
+        else:
+            st.success(f"Created case: {response.case_id}")
     if response.summary:
         st.markdown("**Summary**")
         st.write(response.summary)
@@ -406,6 +411,24 @@ def _render_claim_intake_response(response: ClaimIntakeResponse) -> None:
         st.markdown("**Next actions**")
         for action in response.next_actions:
             st.markdown(f"- {action}")
+    if response.rule_evaluations:
+        st.markdown("**Specialist rule evaluation**")
+        st.dataframe(
+            [
+                {
+                    "Rule": rule.rule_id,
+                    "Status": rule.status.value,
+                    "Anchor": rule.anchor_date,
+                    "Calculated deadline": rule.calculated_deadline,
+                    "Recorded date": rule.actual_date,
+                    "Result": rule.message,
+                    "Source": rule.source,
+                }
+                for rule in response.rule_evaluations
+            ],
+            hide_index=True,
+            use_container_width=True,
+        )
     if response.warnings:
         with st.expander("Review warnings"):
             for warning in response.warnings:
@@ -497,6 +520,9 @@ def _local_assistant_workflow(settings: ApplicationSettings) -> None:
         "local_claim_intake_expected_input",
         ClaimExpectedInput.MESSAGE.value,
     )
+    if expected == ClaimExpectedInput.NONE.value:
+        st.warning("This conversation has been discontinued.")
+        return
 
     if (
         st.session_state.get("assistant_awaiting_pdf", False)
@@ -685,6 +711,10 @@ def _remote_claim_intake_workflow(settings: ApplicationSettings) -> None:
         "claim_intake_expected_input",
         ClaimExpectedInput.MESSAGE.value,
     )
+    if expected == ClaimExpectedInput.NONE.value:
+        st.warning("This conversation has been discontinued.")
+        return
+
     if expected == ClaimExpectedInput.PDF.value:
         with st.container(border=True):
             uploaded_file = st.file_uploader(

@@ -73,8 +73,8 @@ streamlit run streamlit_app.py
 ```
 
 If the development Terraform stack has already been applied, use the local
-launcher to load its Knowledge Base ID, S3 bucket, AWS Region/profile, and model
-configuration before starting Streamlit:
+launcher to load its Knowledge Base ID, S3 bucket, AWS Region/profile, model,
+and live AgentCore endpoint configuration before starting Streamlit:
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\run-local-app.ps1

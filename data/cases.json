@@ -126,5 +126,129 @@
       }
     ],
     "additional_notes": "Complete synthetic case with no blockers."
+  },
+  {
+    "case_id": "CASE-F98E7A98EBE4",
+    "case_type": "ONR",
+    "status": "NEW",
+    "created_date": "2026-08-15",
+    "open_negotiation_start_date": "2026-07-15",
+    "open_negotiation_end_date": "2026-08-13",
+    "provider_name": "Synthetic Emergency Physicians",
+    "provider_response_received": false,
+    "missing_documents": [],
+    "documents": [
+      {
+        "document_id": "b85494e5-2414-40ec-9eff-cc3ca22a222b",
+        "file_name": "synthetic_onr_case_001.pdf",
+        "s3_key": "temporary/INTAKE-c94c5dca-689f-4fc0-9bb7-2aa80cd5b2e1/b85494e5-2414-40ec-9eff-cc3ca22a222b/synthetic_onr_case_001.pdf"
+      }
+    ],
+    "events": [
+      {
+        "date": "2026-08-15",
+        "type": "CASE_CREATED",
+        "description": "ONR case created"
+      },
+      {
+        "date": "2026-08-15",
+        "type": "DOCUMENT_RECEIVED",
+        "description": "Document uploaded: synthetic_onr_case_001.pdf"
+      }
+    ],
+    "additional_notes": "{\"claim_number\": \"CLM-987654321\", \"federal_idr_reference\": null, \"source\": \"conversational-claim-intake\"}"
+  },
+  {
+    "case_id": "CASE-437D750B1426",
+    "case_type": "ONR",
+    "status": "NEW",
+    "created_date": "2026-08-15",
+    "open_negotiation_start_date": "2026-07-15",
+    "open_negotiation_end_date": "2026-08-13",
+    "provider_name": "Synthetic Emergency Physicians",
+    "provider_response_received": false,
+    "missing_documents": [],
+    "documents": [
+      {
+        "document_id": "066bb885-53bd-4fc8-81f6-a33e992041b9",
+        "file_name": "synthetic_onr_case_001.pdf",
+        "s3_key": "temporary/INTAKE-9a322197-0e40-416b-ba70-a7f57df9f6c3/066bb885-53bd-4fc8-81f6-a33e992041b9/synthetic_onr_case_001.pdf"
+      }
+    ],
+    "events": [
+      {
+        "date": "2026-08-15",
+        "type": "CASE_CREATED",
+        "description": "ONR case created"
+      },
+      {
+        "date": "2026-08-15",
+        "type": "DOCUMENT_RECEIVED",
+        "description": "Document uploaded: synthetic_onr_case_001.pdf"
+      }
+    ],
+    "additional_notes": "{\"claim_number\": \"CLM-987654321\", \"federal_idr_reference\": \"\", \"source\": \"conversational-claim-intake\"}"
+  },
+  {
+    "case_id": "CASE-211C76D4232D",
+    "case_type": "ONR",
+    "status": "NEW",
+    "created_date": "2026-08-15",
+    "open_negotiation_start_date": "2026-07-15",
+    "open_negotiation_end_date": "2026-08-13",
+    "provider_name": "Synthetic Emergency Physicians",
+    "provider_response_received": false,
+    "missing_documents": [],
+    "documents": [
+      {
+        "document_id": "9f9d348a-ef8a-4ffc-9481-0159b6b541f3",
+        "file_name": "synthetic_onr_case_001.pdf",
+        "s3_key": "temporary/INTAKE-bd5644ea-7a10-47ab-be2e-22ffec8063b3/9f9d348a-ef8a-4ffc-9481-0159b6b541f3/synthetic_onr_case_001.pdf"
+      }
+    ],
+    "events": [
+      {
+        "date": "2026-08-15",
+        "type": "CASE_CREATED",
+        "description": "ONR case created"
+      },
+      {
+        "date": "2026-08-15",
+        "type": "DOCUMENT_RECEIVED",
+        "description": "Document uploaded: synthetic_onr_case_001.pdf"
+      }
+    ],
+    "additional_notes": "{\"claim_number\": \"CLM-987654321\", \"federal_idr_reference\": \"\", \"source\": \"conversational-claim-intake\"}"
+  },
+  {
+    "case_id": "CLM-987654321",
+    "case_type": "ONR",
+    "status": "NEW",
+    "created_date": "2026-08-16",
+    "open_negotiation_start_date": "2026-07-15",
+    "open_negotiation_end_date": "2026-08-26",
+    "provider_name": "Synthetic Emergency Physicians",
+    "provider_response_received": false,
+    "missing_documents": [],
+    "documents": [
+      {
+        "document_id": "f0e0f99c-bf76-4a12-bded-5491f1f9150f",
+        "file_name": "synthetic_onr_case_001.pdf",
+        "s3_key": "temporary/INTAKE-7d9ee7e7-627e-4aed-a8a7-4ebeb8ca6749/f0e0f99c-bf76-4a12-bded-5491f1f9150f/synthetic_onr_case_001.pdf"
+      }
+    ],
+    "events": [
+      {
+        "date": "2026-08-16",
+        "type": "CASE_CREATED",
+        "description": "ONR case created"
+      },
+      {
+        "date": "2026-08-16",
+        "type": "DOCUMENT_RECEIVED",
+        "description": "Document uploaded: synthetic_onr_case_001.pdf"
+      }
+    ],
+    "additional_notes": "{\"claim_number\": \"CLM-987654321\", \"federal_idr_reference\": null, \"source\": \"conversational-claim-intake\"}"
   }
 ]
