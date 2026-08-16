@@ -42,12 +42,19 @@ resource "aws_s3_bucket_versioning" "deployment" {
 }
 
 resource "aws_s3_object" "deployment" {
-  bucket = aws_s3_bucket.deployment.id
-  key    = "${var.name}/deployment_package.zip"
-  source = var.deployment_package_path
-  etag   = filemd5(var.deployment_package_path)
+  bucket      = aws_s3_bucket.deployment.id
+  key         = "${var.name}/deployment_package.zip"
+  source      = var.deployment_package_path
+  etag        = var.use_source_hash ? null : filemd5(var.deployment_package_path)
+  source_hash = var.use_source_hash ? filemd5(var.deployment_package_path) : null
 
   depends_on = [aws_s3_bucket_versioning.deployment]
+
+  lifecycle {
+    # Multipart S3 ETags are not MD5 hashes. New runtimes use source_hash;
+    # ignoring the legacy ETag prevents unrelated runtime version churn.
+    ignore_changes = [etag]
+  }
 }
 
 data "aws_iam_policy_document" "assume_role" {
@@ -98,10 +105,49 @@ data "aws_iam_policy_document" "runtime" {
   }
 
   statement {
-    sid       = "ReadAuthoritativeCase"
-    effect    = "Allow"
-    actions   = ["dynamodb:GetItem"]
+    sid    = "ReadAuthoritativeCase"
+    effect = "Allow"
+    actions = var.allow_case_writes ? [
+      "dynamodb:GetItem",
+      "dynamodb:PutItem",
+    ] : ["dynamodb:GetItem"]
     resources = [var.case_table_arn]
+  }
+
+  dynamic "statement" {
+    for_each = var.claim_intake_table_arn == null ? [] : [var.claim_intake_table_arn]
+
+    content {
+      sid       = "PersistClaimIntakeSession"
+      effect    = "Allow"
+      actions   = ["dynamodb:GetItem", "dynamodb:PutItem"]
+      resources = [statement.value]
+    }
+  }
+
+  dynamic "statement" {
+    for_each = var.case_documents_bucket_arn == null ? [] : [var.case_documents_bucket_arn]
+
+    content {
+      sid       = "ReadTemporaryClaimDocuments"
+      effect    = "Allow"
+      actions   = ["s3:GetObject"]
+      resources = ["${statement.value}/temporary/*"]
+    }
+  }
+
+  dynamic "statement" {
+    for_each = var.enable_textract ? [1] : []
+
+    content {
+      sid    = "AnalyzeClaimDocuments"
+      effect = "Allow"
+      actions = [
+        "textract:GetDocumentAnalysis",
+        "textract:StartDocumentAnalysis",
+      ]
+      resources = ["*"]
+    }
   }
 
   statement {
@@ -197,13 +243,13 @@ resource "aws_iam_role_policy" "runtime" {
 
 resource "aws_bedrockagentcore_agent_runtime" "this" {
   agent_runtime_name = var.name
-  description        = "Grounded ONR/IDR case intelligence agent."
+  description        = var.runtime_description
   role_arn           = aws_iam_role.runtime.arn
   tags               = var.tags
 
   agent_runtime_artifact {
     code_configuration {
-      entry_point = ["opentelemetry-instrument", "agentcore_main.py"]
+      entry_point = ["opentelemetry-instrument", var.entry_point]
       runtime     = "PYTHON_3_13"
 
       code {
@@ -216,15 +262,24 @@ resource "aws_bedrockagentcore_agent_runtime" "this" {
     }
   }
 
-  environment_variables = {
-    AWS_REGION                = var.aws_region
-    BEDROCK_KNOWLEDGE_BASE_ID = var.knowledge_base_id
-    BEDROCK_MODEL_ID          = var.bedrock_model_id
-    CASE_REPOSITORY           = "dynamodb"
-    DYNAMODB_CASE_TABLE       = var.case_table_name
-    OTEL_PYTHON_DISTRO        = "aws_distro"
-    OTEL_PYTHON_CONFIGURATOR  = "aws_configurator"
-  }
+  environment_variables = merge(
+    {
+      AWS_REGION                = var.aws_region
+      BEDROCK_KNOWLEDGE_BASE_ID = var.knowledge_base_id
+      BEDROCK_MODEL_ID          = var.bedrock_model_id
+      CASE_REPOSITORY           = "dynamodb"
+      DYNAMODB_CASE_TABLE       = var.case_table_name
+      OTEL_PYTHON_DISTRO        = "aws_distro"
+      OTEL_PYTHON_CONFIGURATOR  = "aws_configurator"
+    },
+    var.claim_intake_table_name == null ? {} : {
+      CLAIM_INTAKE_TABLE = var.claim_intake_table_name
+    },
+    var.case_documents_bucket_name == null ? {} : {
+      S3_CASE_DOCUMENTS_BUCKET = var.case_documents_bucket_name
+    },
+    var.additional_environment_variables,
+  )
 
   lifecycle_configuration {
     idle_runtime_session_timeout = var.idle_runtime_session_timeout
@@ -246,6 +301,6 @@ resource "aws_bedrockagentcore_agent_runtime_endpoint" "this" {
   agent_runtime_id      = aws_bedrockagentcore_agent_runtime.this.agent_runtime_id
   agent_runtime_version = aws_bedrockagentcore_agent_runtime.this.agent_runtime_version
   name                  = var.endpoint_name
-  description           = "Stable endpoint for deployment and invocation checks."
+  description           = var.endpoint_description
   tags                  = var.tags
 }

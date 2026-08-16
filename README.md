@@ -19,14 +19,19 @@ legal advice or a production claims-processing system.
 
 ## What the demo shows
 
-1. **Find or create a case** — use bundled JSON data locally or DynamoDB in AWS.
-2. **Review the evidence** — inspect status, dates, timeline events, missing
+1. **Use one conversational assistant** — general questions go to the Bedrock
+   Knowledge Base, while claim-processing requests open a guided PDF intake.
+2. **Identify ONR / IDR PDFs** — deterministic document signals confirm the
+   classification; unrelated PDFs stop as `UNKNOWN` and cannot proceed.
+3. **Extract ONR / IDR PDFs** — use Textract plus Bedrock to produce one
+   validated JSON contract with page-level OCR evidence.
+4. **Review the evidence** — inspect status, dates, timeline events, missing
    information, and supporting documents.
-3. **Calculate risk consistently** — deterministic code evaluates deadline risk;
+5. **Calculate risk consistently** — deterministic code evaluates deadline risk;
    the language model does not invent the result.
-4. **Generate a grounded summary** — Amazon Bedrock receives an explicit set of
+6. **Generate a grounded summary** — Amazon Bedrock receives an explicit set of
    authoritative case facts.
-5. **Ask what happens next** — the agent retrieves relevant process guidance,
+7. **Ask what happens next** — the agent retrieves relevant process guidance,
    returns citations, and keeps that guidance separate from official case facts.
 
 ## How it works
@@ -67,6 +72,29 @@ python -m pip install -r requirements.txt
 streamlit run streamlit_app.py
 ```
 
+If the development Terraform stack has already been applied, use the local
+launcher to load its Knowledge Base ID, S3 bucket, AWS Region/profile, and model
+configuration before starting Streamlit:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\run-local-app.ps1
+```
+
+Values already present in the environment take precedence. Pass `-ModelId` or
+`-Profile` to override the corresponding local Terraform value.
+
+To test the latest local assistant code while persisting submitted cases to the
+development DynamoDB case table, run:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File `
+  .\scripts\run-local-app.ps1 -LocalAssistant -UseDynamoDbCases
+```
+
+`-LocalAssistant` bypasses a deployed claim-intake AgentCore endpoint.
+`-UseDynamoDbCases` sets `CASE_REPOSITORY=dynamodb` and loads
+`DYNAMODB_CASE_TABLE` from the development Terraform outputs.
+
 The default configuration uses `data/cases.json`, so AWS credentials are not
 required to open the interface and explore deterministic case workflows. Start
 with case `CASE-1001`.
@@ -96,6 +124,8 @@ cost unexpectedly.
 | `DYNAMODB_CASE_TABLE` | Cloud case table | Required for DynamoDB mode |
 | `S3_CASE_DOCUMENTS_BUCKET` | Supporting-document bucket | Optional |
 | `BEDROCK_MODEL_ID` | Model used for summaries and agent responses | Optional |
+| `BEDROCK_EXTRACTION_API` | Selects `mantle` or `runtime` extraction | `mantle` |
+| `BEDROCK_EXTRACTION_MODEL_ID` | Optional extraction-specific model; Mantle falls back to `BEDROCK_MODEL_ID` | Optional |
 | `BEDROCK_KNOWLEDGE_BASE_ID` | Retrieval source for process guidance | Optional |
 | `AGENTCORE_RUNTIME_ARN` | Remote AgentCore runtime | Optional |
 | `AGENTCORE_ENDPOINT_NAME` | Stable AgentCore endpoint | Optional |
@@ -111,6 +141,8 @@ the repository ignore rules exclude these artifacts.
 | `app/models/` | Typed case, document, timeline, and status models |
 | `app/repositories/` | JSON, DynamoDB, and S3 persistence adapters |
 | `app/services/` | Case workflows, summaries, and grounded-agent orchestration |
+| `app/services/textract_service.py` | Async multi-page Textract polling and pagination |
+| `app/services/document_extraction_service.py` | Hybrid extraction, validation, classification checks, and evidence mapping |
 | `app/tools/` | Deterministic case, timeline, missing-information, deadline, and retrieval tools |
 | `app/language_models/` | Bedrock and Bedrock Mantle model adapters |
 | `app/ui.py` | Streamlit presentation layer |
@@ -123,13 +155,17 @@ the repository ignore rules exclude these artifacts.
 
 For a short presentation:
 
-1. Open **Case lookup** and load `CASE-1001`.
-2. Point out the authoritative status, timeline, missing information, and
+1. Open **Assistant** and ask a general question such as _“How long is open
+   negotiation?”_ Show the Knowledge Base citations.
+2. Say _“I want to process a claim”_, upload a synthetic ONR or IDR PDF, and
+   show the classification-specific workflow. An unrelated PDF is rejected.
+3. Open **Case lookup** and load `CASE-1001`.
+4. Point out the authoritative status, timeline, missing information, and
    deterministic deadline result.
-3. Open **Case summary** to show a fact-limited generated summary.
-4. Open **Case chat** and ask: _“What should the analyst do next, and what
+5. Open **Case summary** to show a fact-limited generated summary.
+6. Open **Case chat** and ask: _“What should the analyst do next, and what
    process guidance supports that action?”_
-5. Show that general guidance has citations and is displayed separately from
+7. Show that general guidance has citations and is displayed separately from
    official case evidence.
 
 For the full synthetic workflow—including submitting a new case and uploading
@@ -142,7 +178,9 @@ two generated PDFs—follow [STEP_14_DEMO.md](STEP_14_DEMO.md).
 - [Bedrock development](BEDROCK_DEVELOPMENT.md) — model configuration
 - [Knowledge Base development](KNOWLEDGE_BASE_DEVELOPMENT.md) — retrieval setup
 - [Grounding evaluations](GROUNDING_EVALUATIONS.md) — evidence-safety checks
+- [Document extraction](DOCUMENT_EXTRACTION.md) — Textract/Bedrock setup and JSON contract
 - [AgentCore deployment](STEP_15_AGENTCORE.md) — packaging, deployment, and observability
+- [Conversational claim-intake AgentCore](CLAIM_INTAKE_AGENTCORE.md) — separate runtime, event contract, confirmation, and deployment
 
 ## Safety notes
 

@@ -1,5 +1,9 @@
 """Deterministic tools for authoritative case analysis."""
 
+from app.tools.calendar_tool import (
+    FederalHolidayOccurrence,
+    check_us_federal_holiday,
+)
 from app.tools.case_tool import CaseNotFoundError, get_case
 from app.tools.deadline_risk_tool import (
     DeadlineRisk,
@@ -7,6 +11,7 @@ from app.tools.deadline_risk_tool import (
     assess_deadline_risk,
     calculate_deadline_risk,
 )
+from app.tools.document_classifier_tool import classify_document_text
 from app.tools.knowledge_search_tool import (
     BedrockKnowledgeRetriever,
     KnowledgeRetriever,
@@ -23,6 +28,7 @@ from app.tools.timeline_tool import get_case_timeline
 
 __all__ = [
     "CaseNotFoundError",
+    "FederalHolidayOccurrence",
     "DeadlineRisk",
     "DeadlineRiskResult",
     "BedrockKnowledgeRetriever",
@@ -31,7 +37,9 @@ __all__ = [
     "KnowledgeSearchResult",
     "assess_deadline_risk",
     "calculate_deadline_risk",
+    "check_us_federal_holiday",
     "create_knowledge_retriever",
+    "classify_document_text",
     "find_missing_information",
     "get_case",
     "get_case_timeline",

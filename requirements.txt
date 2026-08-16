@@ -1,5 +1,5 @@
 pydantic>=2.9,<3
-boto3>=1.35,<2
+boto3>=1.43,<2
 openai[bedrock]>=2.47,<3
 anthropic[bedrock]>=0.104,<1
 streamlit>=1.48,<2

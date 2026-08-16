@@ -62,6 +62,8 @@ if ($LASTEXITCODE -ne 0) {
 
 Copy-Item -LiteralPath (Join-Path $repositoryRoot "agentcore_main.py") `
     -Destination $stagingPath
+Copy-Item -LiteralPath (Join-Path $repositoryRoot "claim_intake_agentcore_main.py") `
+    -Destination $stagingPath
 Copy-Item -LiteralPath (Join-Path $repositoryRoot "app") `
     -Destination $stagingPath -Recurse
 Copy-Item -LiteralPath (Join-Path $repositoryRoot "data") `
@@ -93,6 +95,8 @@ try {
     $requiredFiles = @(
         "agentcore_main.py",
         "app/agentcore_adapter.py",
+        "claim_intake_agentcore_main.py",
+        "app/claim_intake_agentcore_adapter.py",
         "bedrock_agentcore/__init__.py",
         "opentelemetry-instrument"
     )

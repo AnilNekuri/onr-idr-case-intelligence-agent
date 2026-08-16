@@ -7,7 +7,11 @@ import pytest
 from anthropic import AnthropicError
 from openai import OpenAIError
 
-from app.language_models import BedrockMantleLanguageModel, LanguageModelError
+from app.language_models import (
+    BedrockMantleLanguageModel,
+    LanguageModelError,
+    ToolDefinition,
+)
 
 
 class FakeResponses:
@@ -75,13 +79,27 @@ def test_generate_uses_stateless_responses_api() -> None:
     }
 
 
+def test_gpt_56_uses_its_model_specific_openai_base_path() -> None:
+    assert BedrockMantleLanguageModel._mantle_base_url(
+        "openai.gpt-5.6-luna", "us-east-1"
+    ) == "https://bedrock-mantle.us-east-1.api.aws/openai/v1"
+
+
+def test_gpt_oss_keeps_the_generic_mantle_base_path() -> None:
+    assert BedrockMantleLanguageModel._mantle_base_url(
+        "openai.gpt-oss-120b", "us-east-1"
+    ) == "https://bedrock-mantle.us-east-1.api.aws/v1"
+
+
 class FakeChatCompletions:
     def __init__(self, content: object = "Mistral summary.") -> None:
         self.content = content
         self.request: dict[str, Any] | None = None
+        self.requests: list[dict[str, Any]] = []
 
     def create(self, **kwargs: Any) -> SimpleNamespace:
         self.request = kwargs
+        self.requests.append(kwargs)
         return SimpleNamespace(
             choices=[SimpleNamespace(message=SimpleNamespace(content=self.content))]
         )
@@ -115,6 +133,69 @@ def test_mistral_model_uses_chat_completions_api() -> None:
         "max_tokens": 256,
         "temperature": 0.1,
     }
+
+
+class ToolCallingChatCompletions(FakeChatCompletions):
+    def create(self, **kwargs: Any) -> SimpleNamespace:
+        self.request = kwargs
+        self.requests.append(kwargs)
+        if len(self.requests) == 1:
+            function = SimpleNamespace(
+                name="get_case",
+                arguments='{"case_id":"CASE-1001"}',
+            )
+            message = SimpleNamespace(
+                content=None,
+                tool_calls=[
+                    SimpleNamespace(id="call-1", function=function),
+                ],
+            )
+        else:
+            message = SimpleNamespace(
+                content="CASE-1001 is NEW.",
+                tool_calls=None,
+            )
+        return SimpleNamespace(choices=[SimpleNamespace(message=message)])
+
+
+def test_chat_completion_model_executes_requested_tool_and_returns_final_text() -> None:
+    completions = ToolCallingChatCompletions()
+    model = BedrockMantleLanguageModel(
+        "mistral.ministral-3-3b-instruct",
+        region_name="us-east-1",
+        client=FakeChatClient(completions),
+    )
+    received: list[tuple[str, dict[str, object]]] = []
+
+    result = model.generate_with_tools(
+        "Summarize CASE-1001",
+        (
+            ToolDefinition(
+                "get_case",
+                "Get one case",
+                {
+                    "type": "object",
+                    "properties": {"case_id": {"type": "string"}},
+                    "required": ["case_id"],
+                },
+            ),
+        ),
+        lambda name, arguments: (
+            received.append((name, arguments))
+            or '{"case_id":"CASE-1001","status":"NEW"}'
+        ),
+    )
+
+    assert result.text == "CASE-1001 is NEW."
+    assert received == [("get_case", {"case_id": "CASE-1001"})]
+    assert completions.requests[0]["tool_choice"] == "required"
+    assert completions.requests[1]["tool_choice"] == "auto"
+    assert [message["role"] for message in completions.requests[1]["messages"]] == [
+        "user",
+        "assistant",
+        "tool",
+    ]
+    assert completions.requests[0]["tools"][0]["function"]["name"] == "get_case"
 
 
 def test_anthropic_model_uses_messages_api() -> None:

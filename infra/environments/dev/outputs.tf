@@ -43,6 +43,16 @@ output "case_table_name" {
   value       = module.case_table.name
 }
 
+output "claim_intake_table_arn" {
+  description = "ARN of the durable conversational claim-intake session table."
+  value       = try(module.claim_intake_table[0].arn, null)
+}
+
+output "claim_intake_table_name" {
+  description = "Name supplied to the claim-intake runtime."
+  value       = try(module.claim_intake_table[0].name, null)
+}
+
 output "case_documents_bucket_arn" {
   description = "ARN of the development case-document bucket."
   value       = module.case_documents.arn
@@ -136,4 +146,37 @@ output "agentcore_deployment_bucket_name" {
 output "agentcore_cloudwatch_log_group_name" {
   description = "AgentCore service log group name, or null when disabled."
   value       = try(module.agentcore_runtime[0].cloudwatch_log_group_name, null)
+}
+
+output "claim_agentcore_runtime_arn" {
+  description = "ARN of the conversational claim-intake runtime, or null."
+  value       = try(module.claim_intake_agentcore_runtime[0].runtime_arn, null)
+}
+
+output "claim_agentcore_runtime_id" {
+  description = "Control-plane ID of the claim-intake runtime, or null."
+  value       = try(module.claim_intake_agentcore_runtime[0].runtime_id, null)
+}
+
+output "claim_agentcore_endpoint_name" {
+  description = "Stable claim-intake invocation qualifier, or null."
+  value       = try(module.claim_intake_agentcore_runtime[0].endpoint_name, null)
+}
+
+output "claim_agentcore_endpoint_arn" {
+  description = "ARN of the claim-intake endpoint, or null."
+  value       = try(module.claim_intake_agentcore_runtime[0].endpoint_arn, null)
+}
+
+output "claim_agentcore_execution_role_arn" {
+  description = "Execution role for the claim-intake runtime, or null."
+  value       = try(module.claim_intake_agentcore_runtime[0].execution_role_arn, null)
+}
+
+output "claim_agentcore_cloudwatch_log_group_name" {
+  description = "CloudWatch log group for claim intake, or null."
+  value = try(
+    module.claim_intake_agentcore_runtime[0].cloudwatch_log_group_name,
+    null,
+  )
 }

@@ -33,6 +33,30 @@ variable "deployment_package_path" {
   type        = string
 }
 
+variable "use_source_hash" {
+  description = "Use multipart-safe source hashing for artifact changes."
+  type        = bool
+  default     = false
+}
+
+variable "entry_point" {
+  description = "Python entry-point file inside the deployment ZIP."
+  type        = string
+  default     = "agentcore_main.py"
+}
+
+variable "runtime_description" {
+  description = "Description applied to the AgentCore runtime."
+  type        = string
+  default     = "Grounded ONR/IDR case intelligence agent."
+}
+
+variable "endpoint_description" {
+  description = "Description applied to the stable runtime endpoint."
+  type        = string
+  default     = "Stable endpoint for deployment and invocation checks."
+}
+
 variable "case_table_arn" {
   description = "DynamoDB case table the runtime may read."
   type        = string
@@ -41,6 +65,52 @@ variable "case_table_arn" {
 variable "case_table_name" {
   description = "DynamoDB case table supplied to the application environment."
   type        = string
+}
+
+variable "allow_case_writes" {
+  description = "Allow the runtime to create or replace confirmed cases."
+  type        = bool
+  default     = false
+}
+
+variable "claim_intake_table_arn" {
+  description = "Optional DynamoDB table ARN for durable intake-session state."
+  type        = string
+  default     = null
+  nullable    = true
+}
+
+variable "claim_intake_table_name" {
+  description = "Optional DynamoDB table name supplied to the runtime."
+  type        = string
+  default     = null
+  nullable    = true
+}
+
+variable "case_documents_bucket_arn" {
+  description = "Optional case-document bucket ARN for temporary PDF reads."
+  type        = string
+  default     = null
+  nullable    = true
+}
+
+variable "case_documents_bucket_name" {
+  description = "Optional case-document bucket name supplied to the runtime."
+  type        = string
+  default     = null
+  nullable    = true
+}
+
+variable "enable_textract" {
+  description = "Allow asynchronous Textract document analysis."
+  type        = bool
+  default     = false
+}
+
+variable "additional_environment_variables" {
+  description = "Additional non-secret environment variables for the runtime."
+  type        = map(string)
+  default     = {}
 }
 
 variable "knowledge_base_arn" {
