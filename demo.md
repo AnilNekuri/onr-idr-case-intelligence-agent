@@ -23,7 +23,7 @@ This is a synthetic demonstration with no PHI or PII. The application supports i
 | --- | --- | --- | --- |
 | 0:00–1:00 | Opening | Title and one-sentence explanation | One assistant turns an unstructured claim PDF into a reviewable, grounded case. |
 | 1:00–3:00 | Problem | Describe today's manual intake and triage work | Analysts lose time gathering fields, checking dates, finding guidance, and rejecting incomplete cases. |
-| 3:00–5:00 | Architecture and AI skills | Use the architecture below | AI is used for language and document understanding; deterministic code remains responsible for rules and dates. |
+| 3:00–5:00 | Architecture and AI skills | Use the architecture and capability flows below | AI is used for language and document understanding; deterministic code remains responsible for rules and dates. |
 | 5:00–6:30 | RAG question | Ask a general ONR/IDR question in **Assistant** | Answers come from retrieved process guidance and include citations. |
 | 6:30–11:30 | Positive claim walkthrough | Start intake, upload a prevalidated ONR PDF, review, and submit | The coordinator delegates to the ONR specialist; only a complete, rule-passing claim can be submitted. |
 | 11:30–13:00 | Submitted result | Show case ID, summary, next actions, citations, then ask about the current claim | The result is useful to an analyst and traceable to case facts and process evidence. |
@@ -84,6 +84,77 @@ flowchart TD
 ```
 
 ### AI capabilities used
+
+The first three capabilities determine what work to perform, understand the
+uploaded document, and delegate it to the correct specialist:
+
+```mermaid
+flowchart TB
+    subgraph TOOL["Tool-calling agent"]
+        direction LR
+        T1[User request] --> T2[Model selects a tool]
+        T2 --> T3[Typed application tool]
+        T3 --> T4[Grounded result]
+    end
+
+    subgraph DOC["Hybrid document intelligence"]
+        direction LR
+        D1[ONR or IDR PDF] --> D2[Textract OCR]
+        D2 --> D3[Bedrock extraction]
+        D3 --> D4[Schema and evidence validation]
+    end
+
+    subgraph A2A["Agent calling agents"]
+        direction LR
+        A1[Conversational coordinator] --> A2[Classified document]
+        A2 --> A3[ONR or IDR specialist]
+        A3 --> A4[Typed specialist review]
+    end
+
+    classDef ai fill:#dbeafe,stroke:#2563eb,color:#0f172a
+    classDef evidence fill:#fef3c7,stroke:#d97706,color:#0f172a
+    classDef control fill:#dcfce7,stroke:#15803d,color:#0f172a
+    class T2,D3,A1,A3 ai
+    class T1,D1,D2,A2 evidence
+    class T3,T4,D4,A4 control
+```
+
+The next three capabilities keep answers traceable and reserve calculations
+and workflow controls for deterministic code:
+
+```mermaid
+flowchart TB
+    subgraph RAG["RAG"]
+        direction LR
+        R1[Process question] --> R2[Knowledge Base retrieval]
+        R2 --> R3[Relevant passages]
+        R3 --> R4[Answer with citations]
+    end
+
+    subgraph GS["Grounded summarization"]
+        direction LR
+        G1[Validated case or document facts] --> G2[Fact-limited prompt]
+        G2 --> G3[Bedrock model]
+        G3 --> G4[Evidence-bound summary]
+    end
+
+    subgraph DA["Deterministic automation"]
+        direction LR
+        C1[Authoritative fields] --> C2[Testable Python rules]
+        C2 --> C3[Dates, missing fields, duplicates, and state]
+        C3 --> C4[Block or proceed]
+    end
+
+    classDef ai fill:#dbeafe,stroke:#2563eb,color:#0f172a
+    classDef evidence fill:#fef3c7,stroke:#d97706,color:#0f172a
+    classDef control fill:#dcfce7,stroke:#15803d,color:#0f172a
+    class R4,G2,G3,G4 ai
+    class R1,R2,R3,G1,C1 evidence
+    class C2,C3,C4 control
+```
+
+**Legend:** blue is model-driven work, gold is source evidence, and green is
+typed or deterministic application control.
 
 | Capability | How it is used | Guardrail |
 | --- | --- | --- |
