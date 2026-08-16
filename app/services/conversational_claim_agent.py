@@ -39,6 +39,11 @@ from app.services.case_summary_service import CaseSummaryService
 from app.services.document_extraction_service import DocumentExtractionService
 from app.services.document_summary_service import DocumentSummaryService
 from app.services.knowledge_chat_service import KnowledgeChatService
+from app.services.specialized_claim_agent import (
+    IdrClaimAgent,
+    OnrClaimAgent,
+    SpecializedClaimAgent,
+)
 from app.tools import check_us_federal_holiday
 
 _INTENT_PROMPT = """Classify the user's conversational intent.
@@ -217,16 +222,34 @@ class ConversationalClaimAgent:
         knowledge_chat_service: KnowledgeChatService,
         routing_model: LanguageModel,
         *,
+        onr_agent: SpecializedClaimAgent | None = None,
+        idr_agent: SpecializedClaimAgent | None = None,
         now: Callable[[], datetime] | None = None,
         today: Callable[[], date] | None = None,
     ) -> None:
         self._state_repository = state_repository
         self._extraction_service = extraction_service
-        self._document_summary_service = document_summary_service
         self._case_service = case_service
-        self._case_summary_service = case_summary_service
         self._knowledge_chat_service = knowledge_chat_service
         self._routing_model = routing_model
+        resolved_onr_agent = onr_agent or OnrClaimAgent(
+            document_summary_service,
+            case_summary_service,
+            knowledge_chat_service,
+        )
+        resolved_idr_agent = idr_agent or IdrClaimAgent(
+            document_summary_service,
+            case_summary_service,
+            knowledge_chat_service,
+        )
+        if resolved_onr_agent.document_type is not DisputeDocumentType.ONR:
+            raise ValueError("onr_agent must handle ONR documents")
+        if resolved_idr_agent.document_type is not DisputeDocumentType.IDR:
+            raise ValueError("idr_agent must handle IDR documents")
+        self._specialist_agents = {
+            DisputeDocumentType.ONR: resolved_onr_agent,
+            DisputeDocumentType.IDR: resolved_idr_agent,
+        }
         self._now = now or (lambda: datetime.now(UTC))
         self._today = today or date.today
 
@@ -469,6 +492,7 @@ class ConversationalClaimAgent:
                 {
                     "available": True,
                     "case_id": record.case_id,
+                    "specialist_agent": record.specialist_agent,
                     "summary": record.final_summary,
                     "extracted_claim": (
                         record.extraction.document.model_dump(mode="json")
@@ -483,6 +507,7 @@ class ConversationalClaimAgent:
                 {
                     "available": True,
                     "summary": record.document_summary,
+                    "specialist_agent": record.specialist_agent,
                     "extracted_claim": record.extraction.document.model_dump(
                         mode="json"
                     ),
@@ -516,6 +541,7 @@ class ConversationalClaimAgent:
                     "document": None,
                     "extraction": None,
                     "document_summary": None,
+                    "specialist_agent": None,
                     "updated_at": self._now(),
                 }
             )
@@ -531,26 +557,24 @@ class ConversationalClaimAgent:
                 warnings=extraction.warnings,
             )
 
-        summary = self._document_summary_service.summarize(extraction)
+        specialist = self._specialist_for(extraction.document.document_type)
+        review = specialist.review(extraction)
+        summary = review.summary
         updated = record.model_copy(
             update={
                 "stage": ClaimIntakeStage.REVIEW_AND_CONFIRM,
                 "document": document,
                 "extraction": extraction,
                 "document_summary": summary,
+                "specialist_agent": review.agent_name,
                 "updated_at": self._now(),
             }
         )
         self._state_repository.save(updated)
         can_submit = not extraction.missing_fields
-        instruction = (
-            "Review the extracted information. Would you like to submit this claim?"
-            if can_submit
-            else "Complete the missing information before submitting this claim."
-        )
         return self._response(
             updated,
-            message=instruction,
+            message=review.message,
             expected_input=(
                 ClaimExpectedInput.SUBMISSION_CONFIRMATION
                 if can_submit
@@ -558,11 +582,12 @@ class ConversationalClaimAgent:
             ),
             document_type=extraction.document.document_type,
             summary=summary,
+            specialist_agent=review.agent_name,
             extracted_fields=extraction.document.model_dump(mode="json"),
             missing_fields=extraction.missing_fields,
             warnings=extraction.warnings,
             can_submit=can_submit,
-            next_actions=self._missing_field_actions(extraction),
+            next_actions=list(review.next_actions),
         )
 
     def _confirm_submission(
@@ -590,26 +615,26 @@ class ConversationalClaimAgent:
                 ),
                 expected_input=ClaimExpectedInput.PDF,
                 missing_fields=record.extraction.missing_fields,
+                specialist_agent=record.specialist_agent,
                 can_submit=False,
                 next_actions=self._missing_field_actions(record.extraction),
             )
 
         case, duplicate_detected = self._create_or_recover_case(record)
-        final_summary = self._case_summary_service.summarize(case)
-        guidance = self._knowledge_chat_service.answer(
-            f"What are the next actions after submitting an "
-            f"{case.case_type.value} claim?"
-        )
-        next_actions = [guidance.answer]
+        specialist = self._specialist_for(record.extraction.document.document_type)
+        completion = specialist.complete_submission(case)
+        final_summary = completion.summary
+        next_actions = list(completion.next_actions)
         citations = [
             ClaimIntakeCitation(**citation.model_dump())
-            for citation in guidance.citations
+            for citation in completion.citations
         ]
         updated = record.model_copy(
             update={
                 "stage": ClaimIntakeStage.SUBMITTED,
                 "case_id": case.case_id,
                 "duplicate_detected": duplicate_detected,
+                "specialist_agent": completion.agent_name,
                 "submission_idempotency_key": request.idempotency_key.strip(),
                 "final_summary": final_summary,
                 "next_actions": next_actions,
@@ -634,6 +659,7 @@ class ConversationalClaimAgent:
                 expected_input=self._expected_input(record),
                 document_type=record.extraction.document.document_type,
                 summary=record.document_summary,
+                specialist_agent=record.specialist_agent,
                 extracted_fields=record.extraction.document.model_dump(mode="json"),
                 missing_fields=record.extraction.missing_fields,
                 warnings=record.extraction.warnings,
@@ -722,6 +748,17 @@ class ConversationalClaimAgent:
             )
         return case, False
 
+    def _specialist_for(
+        self,
+        document_type: DisputeDocumentType,
+    ) -> SpecializedClaimAgent:
+        try:
+            return self._specialist_agents[document_type]
+        except KeyError as error:
+            raise ValueError(
+                f"No specialist agent is configured for {document_type.value}"
+            ) from error
+
     @staticmethod
     def _case_id_for_claim_number(claim_number: str) -> str:
         normalized = re.sub(r"[^A-Z0-9]", "", claim_number.upper())
@@ -797,6 +834,7 @@ class ConversationalClaimAgent:
                 else None
             ),
             summary=record.final_summary,
+            specialist_agent=record.specialist_agent,
             extracted_fields=(
                 record.extraction.document.model_dump(mode="json")
                 if record.extraction is not None
@@ -821,6 +859,7 @@ class ConversationalClaimAgent:
         expected_input: ClaimExpectedInput,
         document_type: DisputeDocumentType | None = None,
         summary: str | None = None,
+        specialist_agent: str | None = None,
         extracted_fields: dict[str, object] | None = None,
         missing_fields: list[str] | None = None,
         warnings: list[str] | None = None,
@@ -838,6 +877,7 @@ class ConversationalClaimAgent:
             expected_input=expected_input,
             document_type=document_type,
             summary=summary,
+            specialist_agent=specialist_agent,
             extracted_fields=extracted_fields,
             missing_fields=missing_fields or [],
             warnings=warnings or [],

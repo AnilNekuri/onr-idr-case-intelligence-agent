@@ -37,6 +37,13 @@ from app.services.knowledge_chat_service import (
     KnowledgeCitation,
 )
 from app.services.mantle_extraction_service import MantleExtractionService
+from app.services.specialized_claim_agent import (
+    IdrClaimAgent,
+    OnrClaimAgent,
+    SpecialistReview,
+    SpecialistSubmission,
+    SpecializedClaimAgent,
+)
 from app.services.textract_service import TextractAnalysisError, TextractService
 
 __all__ = [
@@ -59,7 +66,12 @@ __all__ = [
     "GeneralKnowledgeAnswer",
     "KnowledgeChatService",
     "KnowledgeCitation",
+    "IdrClaimAgent",
     "MantleExtractionService",
+    "OnrClaimAgent",
+    "SpecializedClaimAgent",
+    "SpecialistReview",
+    "SpecialistSubmission",
     "UngroundedRecommendationError",
     "create_case_document_service",
     "create_case_service",

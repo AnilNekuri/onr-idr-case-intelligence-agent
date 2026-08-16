@@ -222,10 +222,12 @@ def test_complete_document_is_summarized_confirmed_and_submitted_once() -> None:
     assert requested.state is ClaimIntakeStage.AWAITING_DOCUMENT
     assert reviewed.state is ClaimIntakeStage.REVIEW_AND_CONFIRM
     assert reviewed.summary == "Grounded extracted-document summary."
+    assert reviewed.specialist_agent == "onr_claim_agent"
     assert reviewed.can_submit
     assert submitted.state is ClaimIntakeStage.SUBMITTED
     assert submitted.case_id is not None
     assert submitted.case_id == repeated.case_id
+    assert submitted.specialist_agent == "onr_claim_agent"
     case = case_repository.get(submitted.case_id)
     assert case is not None
     assert case.documents[0].s3_key == DOCUMENT.s3_key
@@ -317,6 +319,36 @@ def test_unknown_document_is_rejected_and_requests_another_pdf() -> None:
     assert response.state is ClaimIntakeStage.AWAITING_DOCUMENT
     assert response.document_type is DisputeDocumentType.UNKNOWN
     assert not response.can_submit
+
+
+def test_idr_document_is_delegated_to_the_idr_agent() -> None:
+    extraction = _complete_extraction().model_copy(
+        update={
+            "document": _complete_extraction().document.model_copy(
+                update={
+                    "document_type": DisputeDocumentType.IDR,
+                    "claim_number": "CLM-IDR-1",
+                    "federal_idr_reference": "IDR-REF-1",
+                    "idr_initiation_date": date(2026, 8, 14),
+                    "negotiation_outcome": "No agreement",
+                }
+            )
+        }
+    )
+    agent = _agent(StateRepository(), StubCaseRepository(), extraction)
+
+    response = agent.handle(
+        SESSION_ID,
+        ClaimIntakeRequest(
+            action=ClaimIntakeAction.DOCUMENT_UPLOADED,
+            document=DOCUMENT,
+        ),
+    )
+
+    assert response.state is ClaimIntakeStage.REVIEW_AND_CONFIRM
+    assert response.document_type is DisputeDocumentType.IDR
+    assert response.specialist_agent == "idr_claim_agent"
+    assert "IDR agent reviewed" in response.message
 
 
 def test_general_question_uses_knowledge_base_without_starting_intake() -> None:

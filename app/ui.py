@@ -387,13 +387,18 @@ def _render_claim_intake_response(response: ClaimIntakeResponse) -> None:
     """Render the structured response from the remote intake runtime."""
     if response.tools_used:
         st.caption("Tools used: " + ", ".join(response.tools_used))
+    if response.specialist_agent:
+        st.caption("Specialist agent: " + response.specialist_agent)
     if response.document_type is not None:
         document_type, missing, ready = st.columns(3)
         document_type.metric("Document type", response.document_type.value)
         missing.metric("Missing fields", len(response.missing_fields))
         ready.metric("Ready to submit", "Yes" if response.can_submit else "No")
     if response.case_id:
-        st.success(f"Created case: {response.case_id}")
+        if response.duplicate_detected:
+            st.info(f"Existing case: {response.case_id}")
+        else:
+            st.success(f"Created case: {response.case_id}")
     if response.summary:
         st.markdown("**Summary**")
         st.write(response.summary)

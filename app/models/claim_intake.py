@@ -84,6 +84,7 @@ class ClaimIntakeRecord(ClaimIntakeModel):
     document: StoredIntakeDocument | None = None
     extraction: DisputeDocumentExtraction | None = None
     document_summary: str | None = None
+    specialist_agent: str | None = None
     case_id: str | None = None
     duplicate_detected: bool = False
     submission_idempotency_key: str | None = None
@@ -103,6 +104,7 @@ class ClaimIntakeResponse(ClaimIntakeModel):
     expected_input: ClaimExpectedInput
     document_type: DisputeDocumentType | None = None
     summary: str | None = None
+    specialist_agent: str | None = None
     extracted_fields: dict[str, Any] | None = None
     missing_fields: list[str] = Field(default_factory=list)
     warnings: list[str] = Field(default_factory=list)
