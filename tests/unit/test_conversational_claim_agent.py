@@ -416,6 +416,72 @@ def test_conflicting_stored_case_type_returns_a_controlled_response() -> None:
     assert "existing case IDR-CLM-1 is ONR" in response.message
 
 
+def test_idr_does_not_collide_with_a_legacy_onr_case_for_the_same_claim() -> None:
+    state = StateRepository()
+    case_repository = StubCaseRepository(make_case(case_id="CLM-1"))
+    onr_extraction = _complete_extraction()
+    idr_extraction = onr_extraction.model_copy(
+        update={
+            "document": onr_extraction.document.model_copy(
+                update={
+                    "document_type": DisputeDocumentType.IDR,
+                    "federal_idr_reference": "IDR-REF-1",
+                    "idr_initiation_date": date(2026, 8, 24),
+                    "negotiation_outcome": "No agreement",
+                }
+            )
+        }
+    )
+    agent = _agent(state, case_repository, idr_extraction)
+    agent.handle(
+        SESSION_ID,
+        ClaimIntakeRequest(
+            action=ClaimIntakeAction.DOCUMENT_UPLOADED,
+            document=DOCUMENT,
+        ),
+    )
+
+    response = agent.handle(
+        SESSION_ID,
+        ClaimIntakeRequest(
+            action=ClaimIntakeAction.CONFIRM_SUBMISSION,
+            confirmation=True,
+            idempotency_key="SUBMIT-IDR",
+        ),
+    )
+
+    assert response.case_id == "IDR-CLM-1"
+    assert not response.duplicate_detected
+    assert case_repository.get("CLM-1") is not None
+    assert case_repository.get("IDR-CLM-1") is not None
+
+
+def test_onr_recovers_a_legacy_onr_case_for_the_same_claim() -> None:
+    state = StateRepository()
+    case_repository = StubCaseRepository(make_case(case_id="CLM-1"))
+    agent = _agent(state, case_repository, _complete_extraction())
+    agent.handle(
+        SESSION_ID,
+        ClaimIntakeRequest(
+            action=ClaimIntakeAction.DOCUMENT_UPLOADED,
+            document=DOCUMENT,
+        ),
+    )
+
+    response = agent.handle(
+        SESSION_ID,
+        ClaimIntakeRequest(
+            action=ClaimIntakeAction.CONFIRM_SUBMISSION,
+            confirmation=True,
+            idempotency_key="SUBMIT-ONR",
+        ),
+    )
+
+    assert response.case_id == "CLM-1"
+    assert response.duplicate_detected
+    assert case_repository.get("ONR-CLM-1") is None
+
+
 def test_unknown_document_is_rejected_and_requests_another_pdf() -> None:
     extraction = DisputeDocumentExtraction(
         document=ExtractedDisputeDocument(

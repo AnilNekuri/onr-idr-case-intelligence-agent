@@ -854,6 +854,11 @@ class ConversationalClaimAgent:
         )
         existing = self._case_service.get_case(case_id)
         if existing is None:
+            legacy_case_id = self._normalize_claim_number(extracted.claim_number)
+            legacy = self._case_service.get_case(legacy_case_id)
+            if legacy is not None and legacy.case_type is expected_case_type:
+                return legacy, True
+        if existing is None:
             assert extracted.provider_name is not None
             assert extracted.open_negotiation_start_date is not None
             assert extracted.open_negotiation_end_date is not None
