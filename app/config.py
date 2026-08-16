@@ -19,6 +19,13 @@ class CaseRepositoryKind(StrEnum):
     DYNAMODB = "dynamodb"
 
 
+class BedrockExtractionApi(StrEnum):
+    """Bedrock endpoint used for semantic document extraction."""
+
+    MANTLE = "mantle"
+    RUNTIME = "runtime"
+
+
 @dataclass(frozen=True, slots=True)
 class ApplicationSettings:
     """Configuration needed to assemble repositories at the application edge."""
@@ -30,9 +37,14 @@ class ApplicationSettings:
     dynamodb_case_table: str | None
     s3_case_documents_bucket: str | None
     bedrock_model_id: str | None = None
+    bedrock_extraction_model_id: str | None = None
+    bedrock_extraction_api: BedrockExtractionApi = BedrockExtractionApi.MANTLE
     bedrock_knowledge_base_id: str | None = None
     agentcore_runtime_arn: str | None = None
     agentcore_endpoint_name: str | None = None
+    claim_intake_table: str | None = None
+    claim_agentcore_runtime_arn: str | None = None
+    claim_agentcore_endpoint_name: str | None = None
 
     @classmethod
     def from_environment(
@@ -49,6 +61,16 @@ class ApplicationSettings:
             raise ConfigurationError(
                 f"CASE_REPOSITORY must be one of: {supported}"
             ) from error
+        raw_extraction_api = values.get(
+            "BEDROCK_EXTRACTION_API", "mantle"
+        ).strip().lower()
+        try:
+            extraction_api = BedrockExtractionApi(raw_extraction_api)
+        except ValueError as error:
+            supported = ", ".join(item.value for item in BedrockExtractionApi)
+            raise ConfigurationError(
+                f"BEDROCK_EXTRACTION_API must be one of: {supported}"
+            ) from error
 
         settings = cls(
             case_repository=repository,
@@ -60,12 +82,23 @@ class ApplicationSettings:
                 values.get("S3_CASE_DOCUMENTS_BUCKET")
             ),
             bedrock_model_id=cls._optional(values.get("BEDROCK_MODEL_ID")),
+            bedrock_extraction_model_id=cls._optional(
+                values.get("BEDROCK_EXTRACTION_MODEL_ID")
+            ),
+            bedrock_extraction_api=extraction_api,
             bedrock_knowledge_base_id=cls._optional(
                 values.get("BEDROCK_KNOWLEDGE_BASE_ID")
             ),
             agentcore_runtime_arn=cls._optional(values.get("AGENTCORE_RUNTIME_ARN")),
             agentcore_endpoint_name=cls._optional(
                 values.get("AGENTCORE_ENDPOINT_NAME")
+            ),
+            claim_intake_table=cls._optional(values.get("CLAIM_INTAKE_TABLE")),
+            claim_agentcore_runtime_arn=cls._optional(
+                values.get("CLAIM_AGENTCORE_RUNTIME_ARN")
+            ),
+            claim_agentcore_endpoint_name=cls._optional(
+                values.get("CLAIM_AGENTCORE_ENDPOINT_NAME")
             ),
         )
         settings._validate()
@@ -105,4 +138,16 @@ class ApplicationSettings:
             raise ConfigurationError(
                 "AGENTCORE_ENDPOINT_NAME must start with a letter and contain at "
                 "most 48 letters, numbers, or underscores"
+            )
+        if (
+            self.claim_agentcore_endpoint_name is not None
+            and re.fullmatch(
+                r"[A-Za-z][A-Za-z0-9_]{0,47}",
+                self.claim_agentcore_endpoint_name,
+            )
+            is None
+        ):
+            raise ConfigurationError(
+                "CLAIM_AGENTCORE_ENDPOINT_NAME must start with a letter and "
+                "contain at most 48 letters, numbers, or underscores"
             )

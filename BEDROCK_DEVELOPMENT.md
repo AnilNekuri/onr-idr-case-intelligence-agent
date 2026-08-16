@@ -35,6 +35,10 @@ the classic `bedrock-runtime` endpoint. In `us-east-1`, the SDK derives:
 https://bedrock-mantle.us-east-1.api.aws/v1
 ```
 
+GPT-5.5 and GPT-5.6 OpenAI models use the model-specific
+`https://bedrock-mantle.<region>.api.aws/openai/v1` base path. The Mantle adapter
+selects that path automatically for `openai.gpt-5.*` model IDs.
+
 The official OpenAI Python SDK's Bedrock provider signs requests with the normal
 AWS credential chain. Your `anekur-admin` SSO profile therefore works directly;
 no long-lived API key is stored in this project.

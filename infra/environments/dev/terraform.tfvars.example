@@ -23,8 +23,10 @@ knowledge_documents_prefix            = "documents/"
 # Step 15 is opt-in because deployment and invocation incur AgentCore, retrieval,
 # model, and observability charges. Build the ZIP before setting this to true.
 enable_agentcore_runtime                  = false
+enable_claim_intake_agentcore_runtime     = false
 agentcore_bedrock_model_id                = null
 agentcore_deployment_package_path         = "../../../output/agentcore/deployment_package.zip"
+claim_intake_agentcore_deployment_package_path = "../../../output/agentcore/claim_intake_deployment_package.zip"
 agentcore_deployment_bucket_force_destroy = true
 agentcore_idle_runtime_session_timeout    = 300
 agentcore_max_lifetime                    = 900

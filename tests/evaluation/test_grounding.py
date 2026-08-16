@@ -112,14 +112,32 @@ def extract_evidence(prompt: str) -> dict[str, object]:
     return parsed
 
 
-def test_dataset_covers_every_synthetic_case_exactly_once() -> None:
+def test_dataset_covers_every_curated_synthetic_case_exactly_once() -> None:
     raw_cases: list[dict[str, object]] = json.loads(
         CASES_FILE.read_text(encoding="utf-8")
     )
-    source_ids = [str(case["case_id"]) for case in raw_cases]
+    source_ids = [
+        str(case["case_id"])
+        for case in raw_cases
+        if not _is_conversational_intake_case(case)
+    ]
 
     assert len(EVALUATION_IDS) == len(set(EVALUATION_IDS))
     assert set(EVALUATION_IDS) == set(source_ids)
+
+
+def _is_conversational_intake_case(case: dict[str, object]) -> bool:
+    notes = case.get("additional_notes")
+    if not isinstance(notes, str):
+        return False
+    try:
+        parsed = json.loads(notes)
+    except json.JSONDecodeError:
+        return False
+    return (
+        isinstance(parsed, dict)
+        and parsed.get("source") == "conversational-claim-intake"
+    )
 
 
 @pytest.mark.parametrize("evaluation", DATASET.cases, ids=EVALUATION_IDS)

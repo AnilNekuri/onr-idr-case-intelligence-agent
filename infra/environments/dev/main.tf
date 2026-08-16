@@ -15,6 +15,15 @@ module "case_table" {
   tags                           = local.common_tags
 }
 
+module "claim_intake_table" {
+  count  = var.enable_claim_intake_agentcore_runtime ? 1 : 0
+  source = "../../modules/claim_intake_table"
+
+  name                           = "${local.name_prefix}-claim-intake-sessions"
+  point_in_time_recovery_enabled = var.case_table_point_in_time_recovery_enabled
+  tags                           = local.common_tags
+}
+
 data "aws_caller_identity" "current" {}
 data "aws_partition" "current" {}
 
@@ -65,6 +74,41 @@ module "agentcore_runtime" {
   knowledge_base_arn      = module.managed_knowledge_base.knowledge_base_arn
   knowledge_base_id       = module.managed_knowledge_base.knowledge_base_id
   bedrock_model_id        = var.agentcore_bedrock_model_id
+
+  force_destroy_deployment_bucket = var.agentcore_deployment_bucket_force_destroy
+  idle_runtime_session_timeout    = var.agentcore_idle_runtime_session_timeout
+  max_lifetime                    = var.agentcore_max_lifetime
+  tags                            = local.common_tags
+}
+
+module "claim_intake_agentcore_runtime" {
+  count  = var.enable_claim_intake_agentcore_runtime ? 1 : 0
+  source = "../../modules/agentcore_runtime"
+
+  name                    = local.claim_agentcore_runtime_name
+  runtime_description     = "Conversational ONR/IDR claim intake, review, and submission agent."
+  endpoint_description    = "Stable endpoint for conversational claim intake."
+  entry_point             = "claim_intake_agentcore_main.py"
+  aws_account_id          = data.aws_caller_identity.current.account_id
+  aws_region              = var.aws_region
+  deployment_bucket_name  = "${local.name_prefix}-${data.aws_caller_identity.current.account_id}-claim-agent-code"
+  deployment_package_path = abspath("${path.root}/${var.claim_intake_agentcore_deployment_package_path}")
+  use_source_hash         = true
+  case_table_arn          = module.case_table.arn
+  case_table_name         = module.case_table.name
+  knowledge_base_arn      = module.managed_knowledge_base.knowledge_base_arn
+  knowledge_base_id       = module.managed_knowledge_base.knowledge_base_id
+  bedrock_model_id        = var.agentcore_bedrock_model_id
+
+  allow_case_writes          = true
+  claim_intake_table_arn     = module.claim_intake_table[0].arn
+  claim_intake_table_name    = module.claim_intake_table[0].name
+  case_documents_bucket_arn  = module.case_documents.arn
+  case_documents_bucket_name = module.case_documents.name
+  enable_textract            = true
+  additional_environment_variables = {
+    BEDROCK_EXTRACTION_API = "mantle"
+  }
 
   force_destroy_deployment_bucket = var.agentcore_deployment_bucket_force_destroy
   idle_runtime_session_timeout    = var.agentcore_idle_runtime_session_timeout

@@ -128,6 +128,12 @@ variable "enable_agentcore_runtime" {
   default     = false
 }
 
+variable "enable_claim_intake_agentcore_runtime" {
+  description = "Create the separate paid conversational claim-intake runtime."
+  type        = bool
+  default     = false
+}
+
 variable "agentcore_bedrock_model_id" {
   description = "Bedrock Mantle model ID used by the deployed AgentCore runtime."
   type        = string
@@ -136,10 +142,10 @@ variable "agentcore_bedrock_model_id" {
 
   validation {
     condition = (
-      !var.enable_agentcore_runtime ||
+      !(var.enable_agentcore_runtime || var.enable_claim_intake_agentcore_runtime) ||
       (var.agentcore_bedrock_model_id != null && length(trimspace(var.agentcore_bedrock_model_id)) > 0)
     )
-    error_message = "agentcore_bedrock_model_id is required when enable_agentcore_runtime is true."
+    error_message = "agentcore_bedrock_model_id is required when either AgentCore runtime is enabled."
   }
 }
 
@@ -147,6 +153,12 @@ variable "agentcore_deployment_package_path" {
   description = "Path from this Terraform root to the built Linux ARM64 direct-deploy ZIP."
   type        = string
   default     = "../../../output/agentcore/deployment_package.zip"
+}
+
+variable "claim_intake_agentcore_deployment_package_path" {
+  description = "Path from this Terraform root to the claim-intake runtime ZIP."
+  type        = string
+  default     = "../../../output/agentcore/claim_intake_deployment_package.zip"
 }
 
 variable "agentcore_deployment_bucket_force_destroy" {
